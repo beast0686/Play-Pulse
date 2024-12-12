@@ -5,7 +5,6 @@ description = "Default template for PDM package"
 authors = ["Beast <amansoudagar@gmail.com>"]
 readme = "README.md"
 license = "MIT"
-requires-python = ">=3.12,<3.13"
 
 [tool.poetry.dependencies]
 python = ">=3.12,<3.13"
