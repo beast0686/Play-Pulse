@@ -191,7 +191,7 @@ def show_landing_page():
     """, unsafe_allow_html=True)
 
     # Title and Introduction
-    st.markdown('<h1 class="landing-title">Sales Analytics Dashboard</h1>', unsafe_allow_html=True)
+    st.markdown('<h1 class="landing-title">Play Pulse</h1>', unsafe_allow_html=True)
     st.markdown('<h2 class="landing-subtitle">Comprehensive Sales Insights Across Product Categories</h2>',
                 unsafe_allow_html=True)
 
@@ -317,7 +317,7 @@ def show_summary_page(pc_summary, laptop_summary, console_summary):
     </style>
     """, unsafe_allow_html=True)
 
-    st.markdown('<h1 class="summary-title">Sales Performance Summary</h1>', unsafe_allow_html=True)
+    st.markdown('<h1 class="summary-title">Play Pulse</h1>', unsafe_allow_html=True)
 
     # Summaries for each category
     categories = [
