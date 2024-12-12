@@ -1,7 +1,7 @@
 # Sales Analytics Dashboard
 
 ## Overview
-The **Sales Analytics Dashboard** is an interactive platform designed to provide in-depth insights into sales performance across three major product categories:
+The **PlayPulse** is an interactive platform designed to provide in-depth insights into sales performance across three major product categories:
 
 - **Personal Computers (PCs)**
 - **Laptops**
