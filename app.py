@@ -102,23 +102,26 @@ def analyze_sales_trends(dataframe: pd.DataFrame):
 
     return fig, fig2
 
-# Profitability Analysis
-def analyze_profitability(dataframe: pd.DataFrame):
-    dataframe['Profit Margin (%)'] = dataframe['Net Sales Without Tax'] / dataframe['Gross Sales'] * 100
+#  Seasonal Trends Analysis
+def analyze_seasonal_trends(dataframe: pd.DataFrame):
+    dataframe['Month'] = pd.Categorical(dataframe['Month'], categories=[
+        'January', 'February', 'March', 'April', 'May', 'June',
+        'July', 'August', 'September', 'October', 'November', 'December'], ordered=True)
 
-    profitability = dataframe.groupby('Brand', as_index=False).agg(
-        Avg_Profit_Margin=('Profit Margin (%)', 'mean')
-    ).sort_values(by='Avg_Profit_Margin', ascending=False)
-
-    fig = px.bar(
-        profitability,
-        x='Brand',
-        y='Avg_Profit_Margin',
-        text='Avg_Profit_Margin',
-        title='Profitability by Brand',
-        labels={'Avg_Profit_Margin': 'Average Profit Margin (%)', 'Brand': 'Brand'}
+    sales_trends = dataframe.groupby('Month', as_index=False).agg(
+        Total_Sales=('Gross Sales', 'sum'),
+        Total_Quantity=('Qty', 'sum')
     )
-    fig.update_traces(texttemplate='%{text:.2f}%', textposition='outside')
+
+    fig = px.line(
+        sales_trends,
+        x='Month',
+        y='Total_Sales',
+        markers=True,
+        title='Seasonal Sales Trends',
+        labels={'Total_Sales': 'Total Sales ($)', 'Month': 'Month'}
+    )
+    fig.update_layout(xaxis_title='Month', yaxis_title='Total Sales ($)')
     return fig
 
 # Market Share
