@@ -477,7 +477,7 @@ def main():
             st.plotly_chart(fig2)
 
         elif visualization == "Profitability Analysis":
-            st.plotly_chart(analyze_profitability(df))
+            st.plotly_chart(analyze_seasonal_trends(df))
 
         elif visualization == "Market Share":
             st.plotly_chart(analyze_market_share(df))
