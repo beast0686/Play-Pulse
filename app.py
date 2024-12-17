@@ -1,6 +1,126 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+import torch
+from transformers import AutoModelForSequenceClassification, AutoTokenizer, pipeline
+
+
+class SalesChatbot:
+    def __init__(self, df_laptop, df_console, df_pcs):
+        # Store dataframes
+        self.dataframes = {
+            'laptops': df_laptop,
+            'consoles': df_console,
+            'pcs': df_pcs
+        }
+
+        # Initialize conversational context
+        self.context = self._prepare_context()
+
+        # Load question-answering model
+        self.qa_model = pipeline(
+            "question-answering",
+            model="deepset/roberta-base-squad2",
+            device=0 if torch.cuda.is_available() else -1
+        )
+
+    def _prepare_context(self):
+        """
+        Prepare a comprehensive context string from sales data
+        that can be used for question answering
+        """
+        context_parts = []
+
+        for category, df in self.dataframes.items():
+            # Aggregate key sales metrics
+            total_sales = df['Gross Sales'].sum()
+            total_quantity = df['Qty'].sum()
+            top_brand = df.groupby('Brand')['Gross Sales'].sum().idxmax()
+            avg_discount = df['Discount'].mean()
+
+            category_context = f"""
+            {category.capitalize()} Sales Overview:
+            - Total Sales: ${total_sales:,.2f}
+            - Total Quantity Sold: {total_quantity:,}
+            - Top Brand: {top_brand}
+            - Average Discount: {avg_discount:.2f}%
+
+            Top 3 Brands in {category.capitalize()}:
+            {df.groupby('Brand')['Gross Sales'].sum().nlargest(3).to_string()}
+
+            Monthly Performance:
+            {df.groupby('Month')['Gross Sales'].sum().nlargest(3).to_string()}
+            """
+            context_parts.append(category_context)
+
+        return " ".join(context_parts)
+
+    def answer_question(self, question):
+        """
+        Answer questions based on the prepared context
+        """
+        try:
+            # Use QA model to extract answer
+            result = self.qa_model(
+                question=question,
+                context=self.context
+            )
+
+            # If no good answer is found
+            if result['score'] < 0.1:
+                return "I'm sorry, I couldn't find a specific answer to that question. Could you rephrase or ask something more directly related to our sales data?"
+
+            return result['answer']
+
+        except Exception as e:
+            return f"An error occurred: {str(e)}"
+
+
+def add_chatbot_to_main_window(df_laptop, df_console, df_pcs):
+    """
+    Add a chatbot interface to the main window
+    """
+    st.header("💬 Play Pulse Bot")
+
+    # Initialize chatbot
+    if 'chatbot' not in st.session_state:
+        st.session_state.chatbot = SalesChatbot(df_laptop, df_console, df_pcs)
+
+    # Chat history
+    if 'messages' not in st.session_state:
+        st.session_state.messages = []
+
+    # Display chat messages
+    chat_container = st.container()
+    with chat_container:
+        for message in st.session_state.messages:
+            if message["role"] == "user":
+                with st.chat_message("user"):
+                    st.write(message["content"])
+            elif message["role"] == "assistant":
+                with st.chat_message("assistant"):
+                    st.write(message["content"])
+
+    # Chat input
+    prompt = st.chat_input("Ask about sales data")
+    if prompt:
+        # Add user message to chat history
+        st.session_state.messages.append({"role": "user", "content": prompt})
+
+        # Display user message
+        with st.chat_message("user"):
+            st.write(prompt)
+
+        # Get chatbot response
+        response = st.session_state.chatbot.answer_question(prompt)
+
+        # Add chatbot response to history
+        st.session_state.messages.append({"role": "assistant", "content": response})
+
+        # Display chatbot response
+        with st.chat_message("assistant"):
+            st.write(response)
+
 
 # Load the datasets
 @st.cache_data
@@ -424,7 +544,7 @@ def main():
     # Sidebar for page selection
     page = st.sidebar.radio(
         "Navigate",
-        ["Home", "Sales Analytics", "Summary"]
+        ["Home", "Sales Analytics", "Summary", "Chat Bot"]
     )
 
     # Conditional page rendering
@@ -433,6 +553,8 @@ def main():
     elif page == "Summary":
         # Show summary page with generated summaries
         show_summary_page(pc_summary, laptop_summary, console_summary)
+    elif page == "Chat Bot":
+        add_chatbot_to_main_window(df_laptop, df_console, df_pcs)
     else:
         # Existing Sales Analytics Page (remains the same as in previous artifact)
         st.title('Sales Analytics Dashboard')
