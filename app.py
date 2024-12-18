@@ -585,7 +585,7 @@ def main():
                 "Market Share",
                 "Sales Distribution",
                 "Sales by Brand",
-                "Profitability Analysis"
+                "Sales Analytics Dashboard"
             ]
         )
 
@@ -598,7 +598,7 @@ def main():
             st.plotly_chart(fig1)
             st.plotly_chart(fig2)
 
-        elif visualization == "Profitability Analysis":
+        elif visualization == "Sales Analytics Dashboard":
             st.plotly_chart(analyze_seasonal_trends(df))
 
         elif visualization == "Market Share":
