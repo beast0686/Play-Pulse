@@ -622,9 +622,7 @@ def main():
 
         visualization = st.sidebar.selectbox("Select Visualization",
                                              ["Monthly Components Sold", "Sales Trends", "Market Share",
-                                              "Sales Distribution", "Sales by Brand", "Seasonal Trends",
-                                              "Forecast Sales", "Clustering", "Elbow Method for Optimal k",
-                                              "3D KMeans Clustering", ], )
+                                              "Sales Distribution", "Sales by Brand", "Seasonal Trends",], )
 
         # Display selected visualization
         if visualization == "Monthly Components Sold":
@@ -646,24 +644,6 @@ def main():
 
         elif visualization == "Sales by Brand":
             st.plotly_chart(analyze_sales_by_brand(df))
-
-        elif visualization == "Forecast Sales":
-            show_forecasts(df)
-
-        elif visualization == "Clustering":
-            num_clusters = st.sidebar.slider("Select Number of Clusters", 2, 10, 3)
-            st.plotly_chart(kmeans_clustering(df, num_clusters))
-
-        elif visualization == "Elbow Method for Optimal k":
-            st.sidebar.write("Elbow Method: Visualize the optimal number of clusters")
-            st.write("This graph helps you identify the best number of clusters (k) for your data.")
-            plot_elbow_method(df)  # Plot the Elbow Method graph
-
-        elif visualization == "3D KMeans Clustering":
-            num_clusters = st.sidebar.slider("Select Number of Clusters", 2, 10, 3)
-            fig = kmeans_clustering_with_metrics(df, num_clusters)  # Use the KMeans 3D clustering function
-            st.plotly_chart(fig)
-
 
 # Run the app
 if __name__ == "__main__":
