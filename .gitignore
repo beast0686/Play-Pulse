@@ -66,6 +66,7 @@ cython_debug/
 # Editor
 .idea/
 .code/
+.devcontainer/
 *.swp
 
 # Datasets
