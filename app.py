@@ -1,9 +1,9 @@
 from math import sqrt
 
-import matplotlib.pyplot as plt
 import pandas as pd
 import plotly.express as px
 import streamlit as st
+import plotly.graph_objects as go
 from sklearn.cluster import KMeans
 from sklearn.impute import SimpleImputer
 from sklearn.metrics import mean_absolute_error, mean_squared_error
@@ -354,6 +354,7 @@ def forecast_sales_arima(dataframe: pd.DataFrame, brand: str, steps: int):
     sales_data = brand_data.groupby("Month")["Gross Sales"].sum()
     sales_data = sales_data.reset_index()
     sales_data["Month"] = pd.to_datetime("2024 " + sales_data["Month"], format="%Y %B")
+    sales_data = sales_data.sort_values(by="Month")
     sales_data.set_index("Month", inplace=True)
 
     model = ARIMA(sales_data["Gross Sales"], order=(5, 1, 0))
@@ -405,6 +406,7 @@ def forecast_sales_sarima(dataframe: pd.DataFrame, brand: str, steps: int):
     sales_data = brand_data.groupby("Month")["Gross Sales"].sum()
     sales_data = sales_data.reset_index()
     sales_data["Month"] = pd.to_datetime("2024 " + sales_data["Month"], format="%Y %B")
+    sales_data = sales_data.sort_values(by="Month")
     sales_data.set_index("Month", inplace=True)
 
     # Fit SARIMA model
@@ -498,7 +500,7 @@ def plot_elbow_method(df):
     # List to hold the inertia values for different k
     inertia = []
 
-    # Range of k values to try (2 to 10 clusters, you can modify this range)
+    # Range of k values to try (1 to 10 clusters)
     k_range = range(1, 11)
 
     # Fit KMeans for different k values and record the inertia (within-cluster sum of squared distances)
@@ -507,17 +509,20 @@ def plot_elbow_method(df):
         kmeans.fit(X_imputed)
         inertia.append(kmeans.inertia_)
 
-    # Plotting the Elbow Method
-    plt.figure(figsize=(8, 6))
-    plt.plot(k_range, inertia, marker="o", color="b", linestyle="--")
-    plt.title("Elbow Method for Optimal k")
-    plt.xlabel("Number of Clusters (k)")
-    plt.ylabel("Inertia (Sum of Squared Distances)")
-    plt.xticks(k_range)
-    plt.grid(True)
+    # Create an Elbow Method plot using Plotly
+    fig = go.Figure()
 
-    # Show the plot in the Streamlit app
-    st.pyplot(plt)
+    # Add the line plot
+    fig.add_trace(
+        go.Scatter(x=list(k_range), y=inertia, mode="lines+markers", marker=dict(color="blue"), line=dict(dash="dash"),
+            name="Inertia"))
+
+    # Customize the layout
+    fig.update_layout(title="Elbow Method for Optimal k", xaxis_title="Number of Clusters (k)",
+        yaxis_title="Inertia (Sum of Squared Distances)", xaxis=dict(tickmode="linear"), template="plotly_white")
+
+    # Show the plot
+    st.plotly_chart(fig)
 
 
 # KMeans Clustering with Silhouette Score and 3D Visualization
@@ -622,7 +627,7 @@ def main():
 
         visualization = st.sidebar.selectbox("Select Visualization",
                                              ["Monthly Components Sold", "Sales Trends", "Market Share",
-                                              "Sales Distribution", "Sales by Brand", "Seasonal Trends",], )
+                                              "Sales Distribution", "Sales by Brand", "Seasonal Trends", ], )
 
         # Display selected visualization
         if visualization == "Monthly Components Sold":
@@ -644,6 +649,7 @@ def main():
 
         elif visualization == "Sales by Brand":
             st.plotly_chart(analyze_sales_by_brand(df))
+
 
 # Run the app
 if __name__ == "__main__":
