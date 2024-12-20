@@ -1,7 +1,7 @@
 [tool.poetry]
 name = "sales_analysis"
 version = "0.1.0"
-description = "Default template for PDM package"
+description = "Comprehensive analysis of computer sales data, providing valuable insights and trends."
 authors = ["Beast <amansoudagar@gmail.com>"]
 readme = "README.md"
 license = "MIT"
