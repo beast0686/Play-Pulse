@@ -1,17 +1,20 @@
 from typing import Protocol
 from dataclasses import dataclass
 
+import numpy as np
 from numpy import format_float_scientific
 import pandas as pd
 import streamlit as st
 import plotly.express as px
 from plotly.graph_objs import Figure
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from statsmodels.tsa.arima.model import ARIMA
 from statsmodels.tsa.statespace.sarimax import SARIMAX
 from sklearn.cluster import KMeans
 from sklearn.impute import SimpleImputer
-from sklearn.metrics import mean_absolute_error, mean_squared_error
+from sklearn.metrics import mean_absolute_error, mean_squared_error, mean_absolute_percentage_error
 from sklearn.metrics import silhouette_score
 from sklearn.preprocessing import StandardScaler
 import plotly.graph_objects as go
@@ -376,9 +379,22 @@ class SeasonalTrendsAnalysis:
 class ForecastSales:
     name: str = "Forecast Sales"
 
-    def arima(
-        self, df: pd.DataFrame, brand: str, steps: int
-    ) -> dict[str, pd.DataFrame]:
+    def split_data(self, df: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
+        """Splits the data into training and testing sets."""
+        train_size = int(len(df) * (8 / 12))  # 8-month training, 4-month testing
+        train_data = df.iloc[:train_size]
+        test_data = df.iloc[train_size:]
+        return train_data, test_data
+
+    def evaluate_forecast(
+            self, actual: pd.Series, predicted: pd.Series
+    ) -> dict[str, float | str]:
+        """Calculates MAE and MAPE to evaluate model performance."""
+        mae = mean_absolute_error(actual, predicted)
+        mape = mean_absolute_percentage_error(actual, predicted) * 100
+        return {"MAE": mae, "MAPE (%)": mape}
+
+    def arima(self, df: pd.DataFrame, brand: str, steps: int) -> dict[str, pd.DataFrame]:
         brand_data = df[df["Brand"] == brand]
         sales_data = brand_data.groupby("Month")["Gross Sales"].sum()
         sales_data = sales_data.reset_index()
@@ -388,22 +404,31 @@ class ForecastSales:
         sales_data = sales_data.sort_values(by="Month")
         sales_data.set_index("Month", inplace=True)
 
-        model = ARIMA(sales_data["Gross Sales"], order=(5, 1, 0))
+        train_data, test_data = self.split_data(sales_data)
+
+        # ARIMA model training and forecasting
+        model = ARIMA(train_data["Gross Sales"], order=(5, 1, 1))
         model_fit = model.fit()
 
-        # Forecasting future sales
-        forecast = model_fit.forecast(steps=steps)
-        future_months = pd.date_range(start="2025-01-01", periods=steps + 1, freq="M")[
-            1:
-        ]
+        # Forecasting
+        forecast = model_fit.forecast(steps=len(test_data))
+        forecast_accuracy = self.evaluate_forecast(test_data["Gross Sales"], forecast)
+
+        # Extending the forecast
+        extended_forecast = model_fit.forecast(steps=steps)
+        future_months = pd.date_range(start="2025-01-01", periods=steps + 1, freq="ME")[1:]
         forecast_df = pd.DataFrame(
-            {"Month": future_months, "Forecasted Sales": forecast}
+            {"Month": future_months, "Forecasted Sales": extended_forecast}
         )
 
-        return {"sales_data": sales_data, "forecast_data": forecast_df}
+        return {
+            "sales_data": sales_data,
+            "forecast_data": forecast_df,
+            "accuracy": forecast_accuracy,
+        }
 
     def sarima(
-        self, df: pd.DataFrame, brand: str, steps: int
+            self, df: pd.DataFrame, brand: str, steps: int
     ) -> dict[str, pd.DataFrame]:
         brand_data = df[df["Brand"] == brand]
         sales_data = brand_data.groupby("Month")["Gross Sales"].sum()
@@ -414,21 +439,93 @@ class ForecastSales:
         sales_data = sales_data.sort_values(by="Month")
         sales_data.set_index("Month", inplace=True)
 
+        train_data, test_data = self.split_data(sales_data)
+
+        # SARIMA model training and forecasting
         model = SARIMAX(
-            sales_data["Gross Sales"], order=(1, 1, 1), seasonal_order=(1, 1, 1, 12)
+            train_data["Gross Sales"], order=(1, 1, 1), seasonal_order=(1, 1, 1, 12)
         )
-        model_fit = model.fit()
+        model_fit = model.fit(disp=False)
 
-        # Forecasting future sales
-        forecast = model_fit.forecast(steps=steps)
-        future_months = pd.date_range(start="2025-01-01", periods=steps + 1, freq="M")[
-            1:
-        ]
+        # Forecasting
+        forecast = model_fit.forecast(steps=len(test_data))
+        forecast_accuracy = self.evaluate_forecast(test_data["Gross Sales"], forecast)
+
+        # Extending the forecast
+        extended_forecast = model_fit.forecast(steps=steps)
+        future_months = pd.date_range(start="2025-01-01", periods=steps + 1, freq="M")[1:]
         forecast_df = pd.DataFrame(
-            {"Month": future_months, "Forecasted Sales": forecast}
+            {"Month": future_months, "Forecasted Sales": extended_forecast}
         )
 
-        return {"sales_data": sales_data, "forecast_data": forecast_df}
+        return {
+            "sales_data": sales_data,
+            "forecast_data": forecast_df,
+            "accuracy": forecast_accuracy,
+        }
+
+    def create_lagged_features(self, data: pd.DataFrame, lags: int = 3) -> pd.DataFrame:
+        """Creates lagged features for the dataset."""
+        df = data.copy()
+        for lag in range(1, lags + 1):
+            df[f"Lag_{lag}"] = df["Gross Sales"].shift(lag)
+        return df.dropna()
+
+    def random_forest(
+            self, df: pd.DataFrame, brand: str, steps: int
+    ) -> dict[str, pd.DataFrame]:
+        brand_data = df[df["Brand"] == brand]
+        sales_data = brand_data.groupby("Month")["Gross Sales"].sum()
+        sales_data = sales_data.reset_index()
+        sales_data["Month"] = pd.to_datetime(
+            "2024 " + sales_data["Month"], format="%Y %B"
+        )
+        sales_data = sales_data.sort_values(by="Month")
+        sales_data.set_index("Month", inplace=True)
+
+        # Create lagged features
+        sales_data = self.create_lagged_features(sales_data)
+
+        # Train-test split
+        X = sales_data.drop(columns=["Gross Sales"])
+        y = sales_data["Gross Sales"]
+        X_train, X_test, y_train, y_test = train_test_split(
+            X, y, test_size=4, shuffle=False
+        )
+
+        # Train the Random Forest model
+        model = RandomForestRegressor(n_estimators=100, random_state=42)
+        model.fit(X_train, y_train)
+
+        # Forecasting on test data
+        y_pred_test = model.predict(X_test)
+        forecast_accuracy = {
+            "MAE": mean_absolute_error(y_test, y_pred_test),
+            "MAPE (%)": mean_absolute_percentage_error(y_test, y_pred_test) * 100,
+        }
+
+        # Extend forecast iteratively
+        last_known_data = X.iloc[-1].values
+        forecast_values = []
+        for _ in range(steps):
+            next_forecast = model.predict([last_known_data])[0]
+            forecast_values.append(next_forecast)
+
+            # Update lagged values
+            last_known_data = np.roll(last_known_data, shift=-1)
+            last_known_data[-1] = next_forecast
+
+        # Generate future months
+        future_months = pd.date_range(start="2025-01-01", periods=steps + 1, freq="M")[1:]
+        forecast_df = pd.DataFrame(
+            {"Month": future_months, "Forecasted Sales": forecast_values}
+        )
+
+        return {
+            "sales_data": sales_data,
+            "forecast_data": forecast_df,
+            "accuracy": forecast_accuracy,
+        }
 
     def plot(self, df: dict[str, pd.DataFrame]) -> Figure:
         sales_data = df["sales_data"]
@@ -457,22 +554,46 @@ class ForecastSales:
 
         return fig
 
+
     def display(self, df: pd.DataFrame) -> None:
         brand = st.sidebar.selectbox(
             "Select Brand for Sales Forecast", df["Brand"].unique()
         )
         steps = st.sidebar.slider("Select Forecast Period", 1, 12, 6)
-        method = st.sidebar.selectbox("Select Forecasting Method", ["ARIMA", "SARIMA"])
+        method = st.sidebar.selectbox("Select Forecasting Method", ["ARIMA", "SARIMA", "Random Forest"])
+
+        accuracy_metrics = None
+        fig = None
 
         if method == "ARIMA":
-            df = self.arima(df, brand, steps)
-            fig = self.plot(df)
-            st.plotly_chart(fig)
+            result = self.arima(df, brand, steps)
+            fig = self.plot(result)
+            accuracy_metrics = result["accuracy"]
 
         elif method == "SARIMA":
-            df = self.sarima(df, brand, steps)
-            fig = self.plot(df)
-            st.plotly_chart(fig)
+            result = self.sarima(df, brand, steps)
+            fig = self.plot(result)
+            accuracy_metrics = result["accuracy"]
+
+        elif method == "Random Forest":
+            result = self.random_forest(df, brand, steps)
+            fig = self.plot(result)
+            accuracy_metrics = result["accuracy"]
+
+        # Display the forecast plot
+        st.plotly_chart(fig)
+
+        # Display the accuracy metrics in a table format
+        if accuracy_metrics:
+            metrics_data = {
+                "Metric": ["Mean Absolute Error (MAE)", "Mean Absolute Percentage Error (MAPE)"],
+                "Value": [accuracy_metrics["MAE"], accuracy_metrics["MAPE (%)"]],
+                "Unit": ["Units", "%"],
+            }
+            metrics_df = pd.DataFrame(metrics_data)
+
+            st.markdown(f"### {method} Model Accuracy")
+            st.table(metrics_df.style.format({"Value": "{:,.2f}"}))
 
 
 @dataclass
