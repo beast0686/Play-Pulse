@@ -1,28 +1,16 @@
-import streamlit as st
 import pandas as pd
-
-from play_pulse import analysis
 import plotly.express as px
+import streamlit as st
 
-from .analysis import (
-    MonthlyComponentsSoldAnalysis,
-    SalesTrendsAnalysis,
-    MarketShareAnalysis,
-    SalesDistributionAnalysis,
-    SalesByBrandAnalysis,
-    ForecastSales,
-    Clustering,
-)
+from .analysis import (MonthlyComponentsSoldAnalysis, SalesTrendsAnalysis, MarketShareAnalysis,
+                       SalesDistributionAnalysis, SalesByBrandAnalysis, ForecastSales, Clustering, )
 from .dashboard import Dashboard
 
 
 @st.cache_data
 def load_data() -> dict[str, pd.DataFrame]:
-    return {
-        "PC": pd.read_csv("datasets/pcs.csv"),
-        "Laptop": pd.read_csv("datasets/laptops.csv"),
-        "Console": pd.read_csv("datasets/consoles.csv"),
-    }
+    return {"PC": pd.read_csv("datasets/pcs.csv"), "Laptop": pd.read_csv("datasets/laptops.csv"),
+        "Console": pd.read_csv("datasets/consoles.csv"), }
 
 
 class AnalysisDashboard(Dashboard):
@@ -35,8 +23,7 @@ class AnalysisDashboard(Dashboard):
 class LandingPage:
     def __init__(self):
         # Custom CSS for styling
-        st.markdown(
-            """
+        st.markdown("""
         <style>
         .landing-title {
             font-size: 48px;
@@ -58,34 +45,25 @@ class LandingPage:
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         }
         </style>
-        """,
-            unsafe_allow_html=True,
-        )
+        """, unsafe_allow_html=True, )
 
     def show(self):
         # Title and Introduction
         st.markdown('<h1 class="landing-title">Play Pulse</h1>', unsafe_allow_html=True)
-        st.markdown(
-            '<h2 class="landing-subtitle">Comprehensive Sales Insights Across Product Categories</h2>',
-            unsafe_allow_html=True,
-        )
+        st.markdown('<h2 class="landing-subtitle">Comprehensive Sales Insights Across Product Categories</h2>',
+            unsafe_allow_html=True, )
 
         # Overview Section
-        self._feature_box(
-            "📊 Dashboard Overview",
-            """
+        self._feature_box("📊 Dashboard Overview", """
         Welcome to our comprehensive Sales Analytics Dashboard! 
         This interactive platform provides deep insights into sales performance across three key product categories:
         - Personal Computers (PCs)
         - Laptops
         - Gaming Consoles
-        """,
-        )
+        """, )
 
         # Key Features Section
-        self._feature_box(
-            "🚀 Key Features",
-            """
+        self._feature_box("🚀 Key Features", """
         - **Interactive Visualizations**: Explore sales data through multiple chart types
         - **Product Category Selection**: Switch between PCs, Laptops, and Consoles
         - **Comprehensive Analytics**:
@@ -94,29 +72,22 @@ class LandingPage:
             - Market Share Analysis
             - Profitability Insights
             - Sales Distribution
-        """,
-        )
+        """, )
 
         # Data Insights Teaser
-        self._feature_box(
-            "💡 What You'll Discover",
-            """
+        self._feature_box("💡 What You'll Discover", """
         Our dashboard helps you uncover:
         - Which brands are performing best
         - Monthly sales fluctuations
         - Impact of discounts on sales
         - Profit margins across different product lines
-        """,
-        )
+        """, )
 
         # Call to Action
-        self._feature_box(
-            "🔍 Ready to Explore?",
-            """
+        self._feature_box("🔍 Ready to Explore?", """
         Click on the menu to the left to start your data exploration journey. 
         Select a product category and choose from various visualization options to gain valuable insights!
-        """,
-        )
+        """, )
 
     def _feature_box(self, title, content):
         st.markdown('<div class="feature-box">', unsafe_allow_html=True)
@@ -132,48 +103,28 @@ class SummaryAnalysis:
 
     def _analyze_dataset(self, dataframe, category_name):
         # Sales Trends Analysis
-        sales_summary = dataframe.groupby("Month", as_index=False).agg(
-            Total_Sales=("Gross Sales", "sum"),
-            Total_Quantity=("Qty", "sum"),
-            Avg_Discount=("Discount", "mean"),
-        )
-        max_sales_month = sales_summary.loc[
-            sales_summary["Total_Sales"].idxmax(), "Month"
-        ]
+        sales_summary = dataframe.groupby("Month", as_index=False).agg(Total_Sales=("Gross Sales", "sum"),
+            Total_Quantity=("Qty", "sum"), Avg_Discount=("Discount", "mean"), )
+        max_sales_month = sales_summary.loc[sales_summary["Total_Sales"].idxmax(), "Month"]
         total_sales = sales_summary["Total_Sales"].sum()
         total_quantity = sales_summary["Total_Quantity"].sum()
 
         # Brand Performance
-        brand_performance = dataframe.groupby("Brand", as_index=False).agg(
-            Total_Sales=("Gross Sales", "sum"), Total_Quantity=("Qty", "sum")
-        )
-        top_brand = brand_performance.loc[
-            brand_performance["Total_Sales"].idxmax(), "Brand"
-        ]
+        brand_performance = dataframe.groupby("Brand", as_index=False).agg(Total_Sales=("Gross Sales", "sum"),
+            Total_Quantity=("Qty", "sum"))
+        top_brand = brand_performance.loc[brand_performance["Total_Sales"].idxmax(), "Brand"]
 
         # Profitability Analysis
-        dataframe["Profit Margin (%)"] = (
-            dataframe["Net Sales Without Tax"] / dataframe["Gross Sales"] * 100
-        )
-        profitability = dataframe.groupby("Brand", as_index=False).agg(
-            Avg_Profit_Margin=("Profit Margin (%)", "mean")
-        )
-        most_profitable_brand = profitability.loc[
-            profitability["Avg_Profit_Margin"].idxmax(), "Brand"
-        ]
+        dataframe["Profit Margin (%)"] = (dataframe["Net Sales Without Tax"] / dataframe["Gross Sales"] * 100)
+        profitability = dataframe.groupby("Brand", as_index=False).agg(Avg_Profit_Margin=("Profit Margin (%)", "mean"))
+        most_profitable_brand = profitability.loc[profitability["Avg_Profit_Margin"].idxmax(), "Brand"]
 
         # Discount Analysis
         avg_discount = dataframe["Discount"].mean()
 
-        return {
-            "category": category_name,
-            "max_sales_month": max_sales_month,
-            "total_sales": total_sales,
-            "total_quantity": total_quantity,
-            "top_brand": top_brand,
-            "most_profitable_brand": most_profitable_brand,
-            "avg_discount": avg_discount,
-        }
+        return {"category": category_name, "max_sales_month": max_sales_month, "total_sales": total_sales,
+            "total_quantity": total_quantity, "top_brand": top_brand, "most_profitable_brand": most_profitable_brand,
+            "avg_discount": avg_discount, }
 
     def generate_summary_analysis(self):
         # Generate summaries for each dataset
@@ -183,8 +134,7 @@ class SummaryAnalysis:
         return pc_summary, laptop_summary, console_summary
 
     def show(self, pc_summary, laptop_summary, console_summary):
-        st.markdown(
-            """
+        st.markdown("""
         <style>
         .summary-title {
             font-size: 36px;
@@ -205,24 +155,15 @@ class SummaryAnalysis:
             margin-bottom: 15px;
         }
         </style>
-        """,
-            unsafe_allow_html=True,
-        )
+        """, unsafe_allow_html=True, )
 
         st.markdown('<h1 class="summary-title">Play Pulse</h1>', unsafe_allow_html=True)
 
         # Summaries for each category
-        categories = [
-            ("Personal Computers", pc_summary),
-            ("Laptops", laptop_summary),
-            ("Consoles", console_summary),
-        ]
+        categories = [("Personal Computers", pc_summary), ("Laptops", laptop_summary), ("Consoles", console_summary), ]
         for category_name, summary in categories:
             st.markdown(f'<div class="summary-box">', unsafe_allow_html=True)
-            st.markdown(
-                f'<h2 class="category-header">{category_name} Sales Analysis</h2>',
-                unsafe_allow_html=True,
-            )
+            st.markdown(f'<h2 class="category-header">{category_name} Sales Analysis</h2>', unsafe_allow_html=True, )
 
             st.markdown(f"""
             ### Key Insights:
@@ -260,55 +201,29 @@ class SummaryAnalysis:
 
     def _cross_category_comparison(self, pc_summary, laptop_summary, console_summary):
         st.markdown('<div class="summary-box">', unsafe_allow_html=True)
-        st.markdown(
-            '<h2 class="category-header">Cross-Category Market Comparison</h2>',
-            unsafe_allow_html=True,
-        )
+        st.markdown('<h2 class="category-header">Cross-Category Market Comparison</h2>', unsafe_allow_html=True, )
 
         # Comparative Analysis
-        comparison_data = pd.DataFrame(
-            [
-                {
-                    "Category": "Personal Computers",
-                    "Total Sales": pc_summary["total_sales"],
-                    "Total Quantity": pc_summary["total_quantity"],
-                },
-                {
-                    "Category": "Laptops",
-                    "Total Sales": laptop_summary["total_sales"],
-                    "Total Quantity": laptop_summary["total_quantity"],
-                },
-                {
-                    "Category": "Consoles",
-                    "Total Sales": console_summary["total_sales"],
-                    "Total Quantity": console_summary["total_quantity"],
-                },
-            ]
-        )
+        comparison_data = pd.DataFrame([{"Category": "Personal Computers", "Total Sales": pc_summary["total_sales"],
+            "Total Quantity": pc_summary["total_quantity"], },
+            {"Category": "Laptops", "Total Sales": laptop_summary["total_sales"],
+                "Total Quantity": laptop_summary["total_quantity"], },
+            {"Category": "Consoles", "Total Sales": console_summary["total_sales"],
+                "Total Quantity": console_summary["total_quantity"], }, ])
 
         # Create two columns for visualizations
         col1, col2 = st.columns(2)
 
         # Sales Comparison Bar Chart
         with col1:
-            fig1 = px.bar(
-                comparison_data,
-                x="Category",
-                y="Total Sales",
-                title="Total Sales Comparison",
-                labels={"Total Sales": "Total Sales"},
-            )
+            fig1 = px.bar(comparison_data, x="Category", y="Total Sales", title="Total Sales Comparison",
+                labels={"Total Sales": "Total Sales"}, )
             st.plotly_chart(fig1)
 
         # Quantity Comparison Bar Chart
         with col2:
-            fig2 = px.bar(
-                comparison_data,
-                x="Category",
-                y="Total Quantity",
-                title="Total Quantity Sold Comparison",
-                labels={"Total Quantity": "Total Quantity"},
-            )
+            fig2 = px.bar(comparison_data, x="Category", y="Total Quantity", title="Total Quantity Sold Comparison",
+                labels={"Total Quantity": "Total Quantity"}, )
             st.plotly_chart(fig2)
 
         st.markdown("""

@@ -1,23 +1,19 @@
-from typing import Protocol
 from dataclasses import dataclass
 
 import numpy as np
-from numpy import format_float_scientific
 import pandas as pd
-import streamlit as st
 import plotly.express as px
+import plotly.graph_objects as go
+import streamlit as st
 from plotly.graph_objs import Figure
+from sklearn.cluster import KMeans
 from sklearn.ensemble import RandomForestRegressor
+from sklearn.impute import SimpleImputer
+from sklearn.metrics import mean_absolute_error, mean_absolute_percentage_error
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from statsmodels.tsa.arima.model import ARIMA
 from statsmodels.tsa.statespace.sarimax import SARIMAX
-from sklearn.cluster import KMeans
-from sklearn.impute import SimpleImputer
-from sklearn.metrics import mean_absolute_error, mean_squared_error, mean_absolute_percentage_error
-from sklearn.metrics import silhouette_score
-from sklearn.preprocessing import StandardScaler
-import plotly.graph_objects as go
 
 
 class MonthlyComponentsSoldAnalysis:
@@ -37,22 +33,11 @@ class MonthlyComponentsSoldAnalysis:
 
             # Generate the first component's plot as an example
             component_data = df[df["Component"] == components[0]]
-            fig = px.line(
-                component_data,
-                x="Month",
-                y=metric,
-                color="Brand",
-                title=f"{components[0]} - {metric} Analysis",
-                markers=True,
-                color_discrete_sequence=px.colors.qualitative.Set2,
-            )
+            fig = px.line(component_data, x="Month", y=metric, color="Brand",
+                title=f"{components[0]} - {metric} Analysis", markers=True,
+                color_discrete_sequence=px.colors.qualitative.Set2, )
 
-            fig.update_layout(
-                xaxis_title="Month",
-                yaxis_title=metric,
-                legend_title="Brand",
-                height=500,
-            )
+            fig.update_layout(xaxis_title="Month", yaxis_title=metric, legend_title="Brand", height=500, )
 
             return fig
         else:
@@ -60,30 +45,17 @@ class MonthlyComponentsSoldAnalysis:
             grouped = df.groupby(["Month", "Brand"], as_index=False)["Qty"].sum()
             grouped.rename(columns={"Qty": "Total Components Sold"}, inplace=True)
 
-            top_brands = (
-                grouped.groupby("Brand", as_index=False)["Total Components Sold"]
-                .sum()
-                .nlargest(10, "Total Components Sold")["Brand"]
-            )
+            top_brands = (grouped.groupby("Brand", as_index=False)["Total Components Sold"].sum().nlargest(10,
+                                                                                                           "Total Components Sold")[
+                "Brand"])
 
             filtered_grouped = grouped[grouped["Brand"].isin(top_brands)]
 
-            fig = px.line(
-                filtered_grouped,
-                x="Month",
-                y="Total Components Sold",
-                color="Brand",
-                title="Number of Components Sold Monthly",
-                labels={"Total Components Sold": "Total Quantity"},
-                markers=True,
-                color_discrete_sequence=px.colors.qualitative.Set2,
-            )
+            fig = px.line(filtered_grouped, x="Month", y="Total Components Sold", color="Brand",
+                title="Number of Components Sold Monthly", labels={"Total Components Sold": "Total Quantity"},
+                markers=True, color_discrete_sequence=px.colors.qualitative.Set2, )
 
-            fig.update_layout(
-                xaxis_title="Month",
-                yaxis_title="Number of Components Sold",
-                legend_title="Brand",
-            )
+            fig.update_layout(xaxis_title="Month", yaxis_title="Number of Components Sold", legend_title="Brand", )
 
             return fig
 
@@ -97,11 +69,7 @@ class MonthlyComponentsSoldAnalysis:
             components = df["Component"].unique()
             metric_tabs = st.tabs(["Quantity Sold", "Gross Sales", "Discount"])
 
-            metrics = {
-                "Quantity Sold": "Qty",
-                "Gross Sales": "Gross Sales",
-                "Discount": "Discount",
-            }
+            metrics = {"Quantity Sold": "Qty", "Gross Sales": "Gross Sales", "Discount": "Discount", }
 
             for idx, (tab, metric) in enumerate(metrics.items()):
                 with metric_tabs[idx]:
@@ -110,31 +78,19 @@ class MonthlyComponentsSoldAnalysis:
                         component_data = df[df["Component"] == component]
 
                         # Create line graph
-                        fig = px.line(
-                            component_data,
-                            x="Month",
-                            y=metric,
-                            color="Brand",
-                            title=f"{component} - {metric} Analysis",
-                            markers=True,
-                            color_discrete_sequence=px.colors.qualitative.Set2,
-                        )
+                        fig = px.line(component_data, x="Month", y=metric, color="Brand",
+                            title=f"{component} - {metric} Analysis", markers=True,
+                            color_discrete_sequence=px.colors.qualitative.Set2, )
                         st.plotly_chart(fig, use_container_width=True)
 
                         # Add summary statistics
                         total = component_data[metric].sum()
                         avg = component_data[metric].mean()
-                        top_brand = (
-                            component_data.groupby("Brand")[metric].sum().idxmax()
-                        )
+                        top_brand = (component_data.groupby("Brand")[metric].sum().idxmax())
 
                         col1, col2, col3 = st.columns(3)
-                        col1.metric(
-                            f"Total {metric.replace('_', ' ')}", f"{total:,.2f}"
-                        )
-                        col2.metric(
-                            f"Average Monthly {metric.replace('_', ' ')}", f"{avg:,.2f}"
-                        )
+                        col1.metric(f"Total {metric.replace('_', ' ')}", f"{total:,.2f}")
+                        col2.metric(f"Average Monthly {metric.replace('_', ' ')}", f"{avg:,.2f}")
                         col3.metric(f"Top {metric.replace('_', ' ')} Brand", top_brand)
                         st.divider()
         else:
@@ -147,25 +103,16 @@ class SalesTrendsAnalysis:
     def transform(self, df: pd.DataFrame) -> pd.DataFrame:
         """Prepare the DataFrame by summarizing sales and brand performance."""
         # Group sales data by Month
-        sales_summary = df.groupby("Month", as_index=False).agg(
-            Total_Sales=("Gross Sales", "sum"),
-            Total_Quantity=("Qty", "sum"),
-            Avg_Discount=("Discount", "mean"),
-        )
+        sales_summary = df.groupby("Month", as_index=False).agg(Total_Sales=("Gross Sales", "sum"),
+            Total_Quantity=("Qty", "sum"), Avg_Discount=("Discount", "mean"), )
 
         # Get the top 10 months with the highest sales
         sales_summary = sales_summary.nlargest(10, "Total_Sales")
 
         # Group sales data by Brand
-        brand_performance = (
-            df.groupby("Brand", as_index=False)
-            .agg(
-                Total_Sales=("Gross Sales", "sum"),
-                Total_Discount=("Discount", "sum"),
-                Total_Quantity=("Qty", "sum"),
-            )
-            .sort_values(by="Total_Sales", ascending=False)
-        )
+        brand_performance = (df.groupby("Brand", as_index=False).agg(Total_Sales=("Gross Sales", "sum"),
+            Total_Discount=("Discount", "sum"), Total_Quantity=("Qty", "sum"), ).sort_values(by="Total_Sales",
+                                                                                             ascending=False))
 
         # Get the top 10 brands with the highest sales
         brand_performance = brand_performance.nlargest(10, "Total_Sales")
@@ -177,29 +124,15 @@ class SalesTrendsAnalysis:
         sales_summary, brand_performance = self.transform(df)
 
         # Create bar chart for monthly sales overview
-        fig1 = px.bar(
-            sales_summary,
-            x="Month",
-            y="Total_Sales",
-            text="Total_Sales",
-            title="Monthly Sales Overview",
-            labels={"Total_Sales": "Total Sales", "Month": "Month"},
-            color="Total_Sales",
-            color_continuous_scale=px.colors.sequential.Blues,
-        )
+        fig1 = px.bar(sales_summary, x="Month", y="Total_Sales", text="Total_Sales", title="Monthly Sales Overview",
+            labels={"Total_Sales": "Total Sales", "Month": "Month"}, color="Total_Sales",
+            color_continuous_scale=px.colors.sequential.Blues, )
         fig1.update_traces(textposition="outside")
-        fig1.update_layout(
-            xaxis_title="Month", yaxis_title="Total Sales", showlegend=False
-        )
+        fig1.update_layout(xaxis_title="Month", yaxis_title="Total Sales", showlegend=False)
 
         # Create pie chart for sales distribution by brand
-        fig2 = px.pie(
-            brand_performance,
-            names="Brand",
-            values="Total_Sales",
-            title="Sales Distribution by Brand",
-            labels={"Total_Sales": "Total Sales", "Brand": "Brand"},
-        )
+        fig2 = px.pie(brand_performance, names="Brand", values="Total_Sales", title="Sales Distribution by Brand",
+            labels={"Total_Sales": "Total Sales", "Brand": "Brand"}, )
         fig2.update_traces(textinfo="percent+label")
 
         return fig1, fig2
@@ -222,9 +155,7 @@ class MarketShareAnalysis:
     def transform(self, df: pd.DataFrame) -> pd.DataFrame:
         """Aggregate total sales by brand and select the top 10 brands."""
         # Group by Brand and calculate total sales
-        brand_share = df.groupby("Brand", as_index=False).agg(
-            Total_Sales=("Gross Sales", "sum")
-        )
+        brand_share = df.groupby("Brand", as_index=False).agg(Total_Sales=("Gross Sales", "sum"))
 
         # Sort by total sales and select the top 10 brands
         top_brands = brand_share.nlargest(10, "Total_Sales")
@@ -236,13 +167,8 @@ class MarketShareAnalysis:
         top_brands = self.transform(df)
 
         # Create a pie chart for market share
-        fig = px.pie(
-            top_brands,
-            names="Brand",
-            values="Total_Sales",
-            title="Market Share by Top 10 Brands",
-            labels={"Total_Sales": "Total Sales"},
-        )
+        fig = px.pie(top_brands, names="Brand", values="Total_Sales", title="Market Share by Top 10 Brands",
+            labels={"Total_Sales": "Total Sales"}, )
 
         return fig
 
@@ -269,13 +195,8 @@ class SalesDistributionAnalysis:
         df = self.transform(df)
 
         # Create a histogram with a box plot marginal
-        fig = px.histogram(
-            df,
-            x="Gross Sales",
-            marginal="box",
-            title="Sales Distribution",
-            labels={"Gross Sales": "Sales", "count": "Number of Sales"},
-        )
+        fig = px.histogram(df, x="Gross Sales", marginal="box", title="Sales Distribution",
+            labels={"Gross Sales": "Sales", "count": "Number of Sales"}, )
 
         return fig
 
@@ -302,13 +223,8 @@ class SalesByBrandAnalysis:
         df = self.transform(df)
 
         # Create the box plot for sales by brand
-        fig = px.box(
-            df,
-            x="Brand",
-            y="Gross Sales",
-            title="Sales by Brand",
-            labels={"Gross Sales": "Sales", "Brand": "Brand"},
-        )
+        fig = px.box(df, x="Brand", y="Gross Sales", title="Sales by Brand",
+            labels={"Gross Sales": "Sales", "Brand": "Brand"}, )
 
         return fig
 
@@ -324,29 +240,13 @@ class SeasonalTrendsAnalysis:
     def transform(self, df: pd.DataFrame) -> pd.DataFrame:
         """Prepare the DataFrame by ensuring the 'Month' column is ordered and aggregating sales data."""
         # Ensure 'Month' is a categorical variable with a specific order
-        df["Month"] = pd.Categorical(
-            df["Month"],
-            categories=[
-                "January",
-                "February",
-                "March",
-                "April",
-                "May",
-                "June",
-                "July",
-                "August",
-                "September",
-                "October",
-                "November",
-                "December",
-            ],
-            ordered=True,
-        )
+        df["Month"] = pd.Categorical(df["Month"],
+            categories=["January", "February", "March", "April", "May", "June", "July", "August", "September",
+                "October", "November", "December", ], ordered=True, )
 
         # Aggregate total sales and quantity by month
-        sales_trends = df.groupby("Month", as_index=False).agg(
-            Total_Sales=("Gross Sales", "sum"), Total_Quantity=("Qty", "sum")
-        )
+        sales_trends = df.groupby("Month", as_index=False).agg(Total_Sales=("Gross Sales", "sum"),
+            Total_Quantity=("Qty", "sum"))
 
         return sales_trends
 
@@ -355,14 +255,8 @@ class SeasonalTrendsAnalysis:
         sales_trends = self.transform(df)
 
         # Create the line chart
-        fig = px.line(
-            sales_trends,
-            x="Month",
-            y="Total_Sales",
-            markers=True,
-            title="Seasonal Sales Trends",
-            labels={"Total_Sales": "Total Sales", "Month": "Month"},
-        )
+        fig = px.line(sales_trends, x="Month", y="Total_Sales", markers=True, title="Seasonal Sales Trends",
+            labels={"Total_Sales": "Total Sales", "Month": "Month"}, )
 
         fig.update_layout(xaxis_title="Month", yaxis_title="Total Sales")
 
@@ -386,9 +280,7 @@ class ForecastSales:
         test_data = df.iloc[train_size:]
         return train_data, test_data
 
-    def evaluate_forecast(
-            self, actual: pd.Series, predicted: pd.Series
-    ) -> dict[str, float | str]:
+    def evaluate_forecast(self, actual: pd.Series, predicted: pd.Series) -> dict[str, float | str]:
         """Calculates MAE and MAPE to evaluate model performance."""
         mae = mean_absolute_error(actual, predicted)
         mape = mean_absolute_percentage_error(actual, predicted) * 100
@@ -398,9 +290,7 @@ class ForecastSales:
         brand_data = df[df["Brand"] == brand]
         sales_data = brand_data.groupby("Month")["Gross Sales"].sum()
         sales_data = sales_data.reset_index()
-        sales_data["Month"] = pd.to_datetime(
-            "2024 " + sales_data["Month"], format="%Y %B"
-        )
+        sales_data["Month"] = pd.to_datetime("2024 " + sales_data["Month"], format="%Y %B")
         sales_data = sales_data.sort_values(by="Month")
         sales_data.set_index("Month", inplace=True)
 
@@ -417,34 +307,22 @@ class ForecastSales:
         # Extending the forecast
         extended_forecast = model_fit.forecast(steps=steps)
         future_months = pd.date_range(start="2025-01-01", periods=steps + 1, freq="ME")[1:]
-        forecast_df = pd.DataFrame(
-            {"Month": future_months, "Forecasted Sales": extended_forecast}
-        )
+        forecast_df = pd.DataFrame({"Month": future_months, "Forecasted Sales": extended_forecast})
 
-        return {
-            "sales_data": sales_data,
-            "forecast_data": forecast_df,
-            "accuracy": forecast_accuracy,
-        }
+        return {"sales_data": sales_data, "forecast_data": forecast_df, "accuracy": forecast_accuracy, }
 
-    def sarima(
-            self, df: pd.DataFrame, brand: str, steps: int
-    ) -> dict[str, pd.DataFrame]:
+    def sarima(self, df: pd.DataFrame, brand: str, steps: int) -> dict[str, pd.DataFrame]:
         brand_data = df[df["Brand"] == brand]
         sales_data = brand_data.groupby("Month")["Gross Sales"].sum()
         sales_data = sales_data.reset_index()
-        sales_data["Month"] = pd.to_datetime(
-            "2024 " + sales_data["Month"], format="%Y %B"
-        )
+        sales_data["Month"] = pd.to_datetime("2024 " + sales_data["Month"], format="%Y %B")
         sales_data = sales_data.sort_values(by="Month")
         sales_data.set_index("Month", inplace=True)
 
         train_data, test_data = self.split_data(sales_data)
 
         # SARIMA model training and forecasting
-        model = SARIMAX(
-            train_data["Gross Sales"], order=(1, 1, 1), seasonal_order=(1, 1, 1, 12)
-        )
+        model = SARIMAX(train_data["Gross Sales"], order=(1, 1, 1), seasonal_order=(1, 1, 1, 12))
         model_fit = model.fit(disp=False)
 
         # Forecasting
@@ -454,15 +332,9 @@ class ForecastSales:
         # Extending the forecast
         extended_forecast = model_fit.forecast(steps=steps)
         future_months = pd.date_range(start="2025-01-01", periods=steps + 1, freq="M")[1:]
-        forecast_df = pd.DataFrame(
-            {"Month": future_months, "Forecasted Sales": extended_forecast}
-        )
+        forecast_df = pd.DataFrame({"Month": future_months, "Forecasted Sales": extended_forecast})
 
-        return {
-            "sales_data": sales_data,
-            "forecast_data": forecast_df,
-            "accuracy": forecast_accuracy,
-        }
+        return {"sales_data": sales_data, "forecast_data": forecast_df, "accuracy": forecast_accuracy, }
 
     def create_lagged_features(self, data: pd.DataFrame, lags: int = 3) -> pd.DataFrame:
         """Creates lagged features for the dataset."""
@@ -471,15 +343,11 @@ class ForecastSales:
             df[f"Lag_{lag}"] = df["Gross Sales"].shift(lag)
         return df.dropna()
 
-    def random_forest(
-            self, df: pd.DataFrame, brand: str, steps: int
-    ) -> dict[str, pd.DataFrame]:
+    def random_forest(self, df: pd.DataFrame, brand: str, steps: int) -> dict[str, pd.DataFrame]:
         brand_data = df[df["Brand"] == brand]
         sales_data = brand_data.groupby("Month")["Gross Sales"].sum()
         sales_data = sales_data.reset_index()
-        sales_data["Month"] = pd.to_datetime(
-            "2024 " + sales_data["Month"], format="%Y %B"
-        )
+        sales_data["Month"] = pd.to_datetime("2024 " + sales_data["Month"], format="%Y %B")
         sales_data = sales_data.sort_values(by="Month")
         sales_data.set_index("Month", inplace=True)
 
@@ -489,9 +357,7 @@ class ForecastSales:
         # Train-test split
         X = sales_data.drop(columns=["Gross Sales"])
         y = sales_data["Gross Sales"]
-        X_train, X_test, y_train, y_test = train_test_split(
-            X, y, test_size=4, shuffle=False
-        )
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=4, shuffle=False)
 
         # Train the Random Forest model
         model = RandomForestRegressor(n_estimators=100, random_state=42)
@@ -499,10 +365,8 @@ class ForecastSales:
 
         # Forecasting on test data
         y_pred_test = model.predict(X_test)
-        forecast_accuracy = {
-            "MAE": mean_absolute_error(y_test, y_pred_test),
-            "MAPE (%)": mean_absolute_percentage_error(y_test, y_pred_test) * 100,
-        }
+        forecast_accuracy = {"MAE": mean_absolute_error(y_test, y_pred_test),
+            "MAPE (%)": mean_absolute_percentage_error(y_test, y_pred_test) * 100, }
 
         # Extend forecast iteratively
         last_known_data = X.iloc[-1].values
@@ -517,48 +381,26 @@ class ForecastSales:
 
         # Generate future months
         future_months = pd.date_range(start="2025-01-01", periods=steps + 1, freq="M")[1:]
-        forecast_df = pd.DataFrame(
-            {"Month": future_months, "Forecasted Sales": forecast_values}
-        )
+        forecast_df = pd.DataFrame({"Month": future_months, "Forecasted Sales": forecast_values})
 
-        return {
-            "sales_data": sales_data,
-            "forecast_data": forecast_df,
-            "accuracy": forecast_accuracy,
-        }
+        return {"sales_data": sales_data, "forecast_data": forecast_df, "accuracy": forecast_accuracy, }
 
     def plot(self, df: dict[str, pd.DataFrame]) -> Figure:
         sales_data = df["sales_data"]
         forecast_df = df["forecast_data"]
 
-        fig = px.line(
-            sales_data.reset_index(),
-            x="Month",
-            y="Gross Sales",
-            title=f"Forecasting of Sales",
-            labels={"Gross Sales": "Total Sales", "Month": "Month"},
-            markers=True,
-        )
+        fig = px.line(sales_data.reset_index(), x="Month", y="Gross Sales", title=f"Forecasting of Sales",
+            labels={"Gross Sales": "Total Sales", "Month": "Month"}, markers=True, )
 
-        fig.add_scatter(
-            x=forecast_df["Month"],
-            y=forecast_df["Forecasted Sales"],
-            mode="lines+markers",
-            name="Forecasted Sales",
-            line=dict(dash="dash", color="red"),
-        )
+        fig.add_scatter(x=forecast_df["Month"], y=forecast_df["Forecasted Sales"], mode="lines+markers",
+            name="Forecasted Sales", line=dict(dash="dash", color="red"), )
 
-        fig.update_layout(
-            xaxis_title="Month", yaxis_title="Total Sales", showlegend=True
-        )
+        fig.update_layout(xaxis_title="Month", yaxis_title="Total Sales", showlegend=True)
 
         return fig
 
-
     def display(self, df: pd.DataFrame) -> None:
-        brand = st.sidebar.selectbox(
-            "Select Brand for Sales Forecast", df["Brand"].unique()
-        )
+        brand = st.sidebar.selectbox("Select Brand for Sales Forecast", df["Brand"].unique())
         steps = st.sidebar.slider("Select Forecast Period", 1, 12, 6)
         method = st.sidebar.selectbox("Select Forecasting Method", ["ARIMA", "SARIMA", "Random Forest"])
 
@@ -585,11 +427,8 @@ class ForecastSales:
 
         # Display the accuracy metrics in a table format
         if accuracy_metrics:
-            metrics_data = {
-                "Metric": ["Mean Absolute Error (MAE)", "Mean Absolute Percentage Error (MAPE)"],
-                "Value": [accuracy_metrics["MAE"], accuracy_metrics["MAPE (%)"]],
-                "Unit": ["Units", "%"],
-            }
+            metrics_data = {"Metric": ["Mean Absolute Error (MAE)", "Mean Absolute Percentage Error (MAPE)"],
+                "Value": [accuracy_metrics["MAE"], accuracy_metrics["MAPE (%)"]], "Unit": ["Units", "%"], }
             metrics_df = pd.DataFrame(metrics_data)
 
             st.markdown(f"### {method} Model Accuracy")
@@ -615,18 +454,9 @@ class Clustering:
         return df
 
     def plot_kmeans(self, df: pd.DataFrame) -> Figure:
-        fig = px.scatter(
-            df,
-            x="Gross Sales",
-            y="Qty",
-            color="Cluster",
-            title="KMeans Clustering of Sales Data",
-            labels={"Gross Sales": "Total Sales", "Qty": "Quantity Sold"},
-            color_continuous_scale="Viridis",
-        )
-        fig.update_layout(
-            xaxis_title="Total Sales", yaxis_title="Quantity Sold", showlegend=True
-        )
+        fig = px.scatter(df, x="Gross Sales", y="Qty", color="Cluster", title="KMeans Clustering of Sales Data",
+            labels={"Gross Sales": "Total Sales", "Qty": "Quantity Sold"}, color_continuous_scale="Viridis", )
+        fig.update_layout(xaxis_title="Total Sales", yaxis_title="Quantity Sold", showlegend=True)
         return fig
 
     def plot_elbow(self, df: pd.DataFrame) -> None:
@@ -653,25 +483,12 @@ class Clustering:
         fig = go.Figure()
 
         # Add the line plot
-        fig.add_trace(
-            go.Scatter(
-                x=list(k_range),
-                y=inertia,
-                mode="lines+markers",
-                marker=dict(color="blue"),
-                line=dict(dash="dash"),
-                name="Inertia",
-            )
-        )
+        fig.add_trace(go.Scatter(x=list(k_range), y=inertia, mode="lines+markers", marker=dict(color="blue"),
+            line=dict(dash="dash"), name="Inertia", ))
 
         # Customize the layout
-        fig.update_layout(
-            title="Elbow Method for Optimal k",
-            xaxis_title="Number of Clusters (k)",
-            yaxis_title="Inertia (Sum of Squared Distances)",
-            xaxis=dict(tickmode="linear"),
-            template="plotly_white",
-        )
+        fig.update_layout(title="Elbow Method for Optimal k", xaxis_title="Number of Clusters (k)",
+            yaxis_title="Inertia (Sum of Squared Distances)", xaxis=dict(tickmode="linear"), template="plotly_white", )
 
         # Show the plot
         st.plotly_chart(fig)
@@ -689,36 +506,19 @@ class Clustering:
         df["Cluster"] = kmeans.fit_predict(scaled_data)
 
         # 3D Scatter Plot for Clusters
-        fig = px.scatter_3d(
-            df,
-            x="Gross Sales",
-            y="Qty",
-            z="Discount",
-            color="Cluster",
+        fig = px.scatter_3d(df, x="Gross Sales", y="Qty", z="Discount", color="Cluster",
             title=f"KMeans 3D Clustering with {num_clusters} Clusters",
-            labels={
-                "Gross Sales": "Total Sales",
-                "Qty": "Quantity Sold",
-                "Discount": "Discount",
-            },
-            color_continuous_scale="Viridis",
-        )
+            labels={"Gross Sales": "Total Sales", "Qty": "Quantity Sold", "Discount": "Discount", },
+            color_continuous_scale="Viridis", )
 
         fig.update_layout(
-            scene={
-                "xaxis_title": "Total Sales",
-                "yaxis_title": "Quantity Sold",
-                "zaxis_title": "Discount",
-            },
-            showlegend=True,
-        )
+            scene={"xaxis_title": "Total Sales", "yaxis_title": "Quantity Sold", "zaxis_title": "Discount", },
+            showlegend=True, )
         return fig
 
     def display(self, df: pd.DataFrame) -> None:
         num_clusters = st.sidebar.slider("Select Number of Clusters", 2, 10, 3)
-        method = st.sidebar.selectbox(
-            "Select Clustering Method", ["KMeans", "Elbow", "3D Clustering"]
-        )
+        method = st.sidebar.selectbox("Select Clustering Method", ["KMeans", "Elbow", "3D Clustering"])
 
         if method == "KMeans":
             df = self.kmeans(df, num_clusters)

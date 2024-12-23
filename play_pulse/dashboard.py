@@ -1,6 +1,6 @@
+import pandas as pd
 import streamlit as st
 from attrs import Factory, define
-import pandas as pd
 
 from .types import Displayable
 
@@ -15,9 +15,7 @@ class Dashboard:
         """Render the Streamlit dashboard."""
         st.title(self.name)
 
-        selection = st.sidebar.selectbox(
-            f"{self.name.title()} components", list(self.components.keys())
-        )
+        selection = st.sidebar.selectbox(f"{self.name.title()} components", list(self.components.keys()))
 
         component = self.components[selection]
         component.display(df)
